@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Django
+db.sqlite3
+*.log
+staticfiles/
+media/
+
+# VS Code
+.vscode/
+
+# Environment
+.env
+.env.*
+venv/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Render deployment
+render.yaml
+
+# Misc
+*.swp
+*.swo
+
+# Node (if any frontend assets)
+node_modules/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# pytest
+.pytest_cache/
+
+# Migrations (optional, keep if you want to ignore generated migrations)
+# migrations/

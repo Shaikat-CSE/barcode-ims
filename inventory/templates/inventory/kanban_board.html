@@ -1,0 +1,1089 @@
+{% extends 'inventory/base.html' %}
+
+{% block title %}Kanban Board - Barcode IMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kanban-container {
+        overflow-x: auto;
+        min-height: 500px;
+        padding-bottom: 20px;
+    }
+    
+    .kanban-board {
+        display: flex;
+        gap: 20px;
+        padding: 10px 0;
+        min-height: 500px;
+    }
+    
+    .kanban-column {
+        min-width: 300px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .kanban-column-header {
+        padding: 15px;
+        background-color: #e9ecef;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .kanban-column-header .dropdown-toggle::after {
+        display: none;
+    }
+    
+    .kanban-column-header .btn-light {
+        padding: 0.25rem 0.5rem;
+        background-color: transparent;
+        border: none;
+    }
+    
+    .kanban-column-header .btn-light:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    .kanban-items {
+        flex: 1;
+        min-height: 200px;
+        padding: 10px;
+        overflow-y: auto;
+    }
+    
+    .kanban-item {
+        background-color: white;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: grab;
+    }
+    
+    .kanban-item:active {
+        cursor: grabbing;
+    }
+    
+    .kanban-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 5px;
+    }
+    
+    .kanban-item img {
+        max-height: 60px;
+        object-fit: contain;
+    }
+    
+    .sortable-ghost {
+        opacity: 0.4;
+    }
+    
+    .add-category-form {
+        margin-bottom: 20px;
+    }
+    
+    .category-count {
+        font-size: 0.8rem;
+        background-color: #6c757d;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+    }
+    
+    .empty-column-message {
+        color: #6c757d;
+        text-align: center;
+        padding: 20px 0;
+        font-style: italic;
+    }
+    
+    .search-container {
+        margin-bottom: 20px;
+    }
+    
+    .search-input {
+        border-radius: 20px;
+        padding-left: 40px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c757d' class='bi bi-search' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: 15px center;
+    }
+    
+    .filter-badge {
+        margin-right: 5px;
+        margin-bottom: 5px;
+        cursor: pointer;
+    }
+    
+    .filter-badge .close {
+        margin-left: 5px;
+        font-size: 10px;
+    }
+    
+    .filter-container {
+        margin-bottom: 15px;
+    }
+    
+    .hidden-item {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Kanban Board</h1>
+            
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                <i class="fas fa-plus me-2"></i>Add Category
+            </button>
+        </div>
+        
+        <!-- Search and Filter Bar -->
+        <div class="search-container">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control search-input" placeholder="Search products by name or barcode...">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="categoryFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-filter me-1"></i>Filter by Category
+                            </button>
+                            <ul class="dropdown-menu" id="categoryFilterMenu" aria-labelledby="categoryFilterDropdown">
+                                <li><a class="dropdown-item" href="#" data-category="all">All Categories</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <!-- Categories will be added here dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Filters -->
+            <div class="filter-container mt-2" id="activeFilters" style="display: none;">
+                <div class="d-flex flex-wrap align-items-center">
+                    <span class="me-2">Active filters:</span>
+                    <div id="filterBadges"></div>
+                    <button class="btn btn-sm btn-link text-decoration-none" id="clearAllFilters">Clear all</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="kanban-container">
+            <div id="kanbanBoard" class="kanban-board">
+                <!-- Kanban columns will be loaded here -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading categories and products...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCategoryModalLabel">Add New Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCategoryForm">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="categoryName" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCategoryBtn">Save Category</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCategoryModalLabel">Edit Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editCategoryForm">
+                    <input type="hidden" id="editCategoryId">
+                    <div class="mb-3">
+                        <label for="editCategoryName" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="editCategoryName" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateCategoryBtn">Update Category</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Details Modal -->
+<div class="modal fade" id="productDetailsModal" tabindex="-1" aria-labelledby="productDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productDetailsModalLabel">Product Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <img id="modalProductImage" src="" alt="Product Image" class="img-fluid" style="max-height: 200px;">
+                </div>
+                <h4 id="modalProductName"></h4>
+                <p id="modalProductDescription" class="text-muted"></p>
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <strong>Barcode:</strong> <span id="modalProductBarcode"></span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Price:</strong> $<span id="modalProductPrice"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <strong>Category:</strong> <span id="modalProductCategory"></span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Added:</strong> <span id="modalProductCreatedAt"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="deleteProductBtn">
+                    <i class="fas fa-trash me-1"></i>Delete Product
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const kanbanBoard = document.getElementById('kanbanBoard');
+        const saveCategoryBtn = document.getElementById('saveCategoryBtn');
+        const updateCategoryBtn = document.getElementById('updateCategoryBtn');
+        const categoryNameInput = document.getElementById('categoryName');
+        const editCategoryNameInput = document.getElementById('editCategoryName');
+        const editCategoryIdInput = document.getElementById('editCategoryId');
+        const deleteProductBtn = document.getElementById('deleteProductBtn');
+        const addCategoryModal = new bootstrap.Modal(document.getElementById('addCategoryModal'));
+        const editCategoryModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+        const productDetailsModal = new bootstrap.Modal(document.getElementById('productDetailsModal'));
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearch');
+        const categoryFilterMenu = document.getElementById('categoryFilterMenu');
+        const activeFilters = document.getElementById('activeFilters');
+        const filterBadges = document.getElementById('filterBadges');
+        const clearAllFiltersBtn = document.getElementById('clearAllFilters');
+        
+        // Store the current product being viewed
+        let currentProduct = null;
+        
+        // Store all products for filtering
+        let allProducts = [];
+        let activeCategory = 'all';
+        
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+        
+        // Load categories and products
+        loadKanbanBoard();
+        
+        // Event delegation for category actions (edit/delete)
+        kanbanBoard.addEventListener('click', function(e) {
+            // Handle edit category
+            if (e.target.classList.contains('edit-category') || e.target.parentElement.classList.contains('edit-category')) {
+                e.preventDefault();
+                const link = e.target.classList.contains('edit-category') ? e.target : e.target.parentElement;
+                const categoryId = link.dataset.categoryId;
+                const categoryName = link.dataset.categoryName;
+                
+                // Set values in edit form
+                editCategoryIdInput.value = categoryId;
+                editCategoryNameInput.value = categoryName;
+                
+                // Show modal
+                editCategoryModal.show();
+            }
+            
+            // Handle delete category
+            if (e.target.classList.contains('delete-category') || e.target.parentElement.classList.contains('delete-category')) {
+                e.preventDefault();
+                const link = e.target.classList.contains('delete-category') ? e.target : e.target.parentElement;
+                const categoryId = link.dataset.categoryId;
+                const categoryName = link.dataset.categoryName;
+                
+                // Confirm deletion
+                Swal.fire({
+                    title: 'Delete Category?',
+                    text: `Are you sure you want to delete "${categoryName}"? All products in this category will be moved to "Uncategorized".`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, delete it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        deleteCategory(categoryId);
+                    }
+                });
+            }
+        });
+        
+        // Update category event handler
+        updateCategoryBtn.addEventListener('click', function() {
+            const categoryId = editCategoryIdInput.value;
+            const categoryName = editCategoryNameInput.value.trim();
+            
+            if (!categoryName) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Empty Name',
+                    text: 'Please enter a category name',
+                });
+                return;
+            }
+            
+            updateCategoryDetails(categoryId, categoryName);
+        });
+        
+        // Delete product event handler
+        deleteProductBtn.addEventListener('click', function() {
+            if (!currentProduct) return;
+            
+            // Confirm deletion
+            Swal.fire({
+                title: 'Delete Product?',
+                text: `Are you sure you want to delete "${currentProduct.name}"? This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    deleteProduct(currentProduct.id);
+                }
+            });
+        });
+        
+        // Search input event
+        searchInput.addEventListener('input', function() {
+            filterProducts();
+        });
+        
+        // Clear search button
+        clearSearchBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            filterProducts();
+        });
+        
+        // Clear all filters button
+        clearAllFiltersBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            activeCategory = 'all';
+            updateFilterBadges();
+            filterProducts();
+        });
+        
+        // Add category event listener
+        saveCategoryBtn.addEventListener('click', function() {
+            const categoryName = categoryNameInput.value.trim();
+            
+            if (!categoryName) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Empty Name',
+                    text: 'Please enter a category name',
+                });
+                return;
+            }
+            
+            // Call API to add category
+            fetch('/api/add-category/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ name: categoryName })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    // Close modal and reset form
+                    addCategoryModal.hide();
+                    categoryNameInput.value = '';
+                    
+                    // Reload kanban board
+                    loadKanbanBoard();
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Category Added',
+                        text: 'New category has been added',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error adding category:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to add category: ' + error
+                });
+            });
+        });
+        
+        // Filter products based on search input and category filter
+        function filterProducts() {
+            const searchTerm = searchInput.value.toLowerCase();
+            
+            // Update filter badges
+            updateFilterBadges();
+            
+            // Filter each product
+            allProducts.forEach(product => {
+                const productElement = document.querySelector(`.kanban-item[data-product-id="${product.id}"]`);
+                if (!productElement) return;
+                
+                const nameMatch = product.name.toLowerCase().includes(searchTerm);
+                const barcodeMatch = product.barcode.toLowerCase().includes(searchTerm);
+                const categoryMatch = activeCategory === 'all' || product.category_id === activeCategory;
+                
+                // Show or hide based on filters
+                if ((nameMatch || barcodeMatch) && categoryMatch) {
+                    productElement.classList.remove('hidden-item');
+                } else {
+                    productElement.classList.add('hidden-item');
+                }
+            });
+            
+            // Show or hide empty column messages
+            document.querySelectorAll('.kanban-items').forEach(column => {
+                const visibleItems = column.querySelectorAll('.kanban-item:not(.hidden-item)').length;
+                const emptyMessage = column.querySelector('.empty-column-message');
+                
+                if (visibleItems === 0) {
+                    // If no empty message exists, create one
+                    if (!emptyMessage) {
+                        const newEmptyMessage = document.createElement('div');
+                        newEmptyMessage.className = 'empty-column-message';
+                        newEmptyMessage.innerHTML = `
+                            <i class="fas fa-box-open mb-2"></i>
+                            <div>No products match the filter</div>
+                        `;
+                        column.appendChild(newEmptyMessage);
+                    } else {
+                        emptyMessage.style.display = 'block';
+                    }
+                } else if (emptyMessage) {
+                    emptyMessage.style.display = 'none';
+                }
+            });
+        }
+        
+        // Update filter badges
+        function updateFilterBadges() {
+            filterBadges.innerHTML = '';
+            let hasFilters = false;
+            
+            // Add search term badge
+            if (searchInput.value) {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary filter-badge';
+                badge.innerHTML = `Search: ${searchInput.value} <span class="close">&times;</span>`;
+                badge.addEventListener('click', function() {
+                    searchInput.value = '';
+                    filterProducts();
+                });
+                filterBadges.appendChild(badge);
+                hasFilters = true;
+            }
+            
+            // Add category filter badge
+            if (activeCategory !== 'all') {
+                const categoryName = document.querySelector(`[data-category="${activeCategory}"]`)?.textContent || 'Unknown';
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-secondary filter-badge';
+                badge.innerHTML = `Category: ${categoryName} <span class="close">&times;</span>`;
+                badge.addEventListener('click', function() {
+                    activeCategory = 'all';
+                    filterProducts();
+                });
+                filterBadges.appendChild(badge);
+                hasFilters = true;
+            }
+            
+            // Show or hide the filters container
+            activeFilters.style.display = hasFilters ? 'block' : 'none';
+        }
+        
+        // Load kanban board with categories and products
+        function loadKanbanBoard() {
+            // Fetch categories
+            fetch('/api/categories/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(categoriesData => {
+                if (categoriesData.status === 'success') {
+                    // Clear the board
+                    kanbanBoard.innerHTML = '';
+                    
+                    // Clear category filter menu
+                    const categoryFilterItems = categoryFilterMenu.querySelectorAll('li:not(:first-child):not(:nth-child(2))');
+                    categoryFilterItems.forEach(item => item.remove());
+                    
+                    // Add columns for each category
+                    categoriesData.categories.forEach(category => {
+                        addCategoryColumn(category);
+                        
+                        // Add to filter dropdown
+                        const li = document.createElement('li');
+                        li.innerHTML = `<a class="dropdown-item" href="#" data-category="${category.id}">${category.name}</a>`;
+                        categoryFilterMenu.appendChild(li);
+                    });
+                    
+                    // Add event listeners to category filter items
+                    categoryFilterMenu.querySelectorAll('.dropdown-item').forEach(item => {
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            activeCategory = this.dataset.category;
+                            filterProducts();
+                        });
+                    });
+                    
+                    // Fetch products for each category
+                    return fetch('/api/products/');
+                } else {
+                    throw new Error(categoriesData.message || 'Failed to load categories');
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(productsData => {
+                if (productsData.status === 'success') {
+                    // Store all products for filtering
+                    allProducts = productsData.products;
+                    
+                    // Group products by category
+                    const productsByCategory = {};
+                    
+                    productsData.products.forEach(product => {
+                        if (!productsByCategory[product.category_id]) {
+                            productsByCategory[product.category_id] = [];
+                        }
+                        productsByCategory[product.category_id].push(product);
+                    });
+                    
+                    // Add products to respective columns
+                    for (const categoryId in productsByCategory) {
+                        const columnItems = document.querySelector(`.kanban-items[data-category-id="${categoryId}"]`);
+                        if (columnItems) {
+                            // Clear "no products" message if it exists
+                            columnItems.innerHTML = '';
+                            
+                            // Add products
+                            productsByCategory[categoryId].forEach(product => {
+                                addProductItem(columnItems, product);
+                            });
+                            
+                            // Update count
+                            const countElement = document.querySelector(`.category-count[data-category-id="${categoryId}"]`);
+                            if (countElement) {
+                                countElement.textContent = productsByCategory[categoryId].length;
+                            }
+                        }
+                    }
+                    
+                    // Initialize Sortable on all columns
+                    initializeSortable();
+                    
+                    // Apply any active filters
+                    filterProducts();
+                } else {
+                    throw new Error(productsData.message || 'Failed to load products');
+                }
+            })
+            .catch(error => {
+                console.error("Error loading kanban board:", error);
+                kanbanBoard.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Failed to load kanban board: ${error.message}
+                    </div>
+                `;
+            });
+        }
+        
+        // Add a category column to the board
+        function addCategoryColumn(category) {
+            const column = document.createElement('div');
+            column.className = 'kanban-column';
+            
+            // Don't allow editing or deleting the Uncategorized category
+            const isUncategorized = category.name === "Uncategorized";
+            
+            column.innerHTML = `
+                <div class="kanban-column-header">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <span>${category.name}</span>
+                        <div>
+                            <span class="category-count" data-category-id="${category.id}">${category.product_count}</span>
+                            ${!isUncategorized ? `
+                            <div class="dropdown d-inline-block ms-2">
+                                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item edit-category" href="#" data-category-id="${category.id}" data-category-name="${category.name}">
+                                        <i class="fas fa-edit me-2"></i>Edit Category
+                                    </a></li>
+                                    <li><a class="dropdown-item delete-category" href="#" data-category-id="${category.id}" data-category-name="${category.name}">
+                                        <i class="fas fa-trash me-2"></i>Delete Category
+                                    </a></li>
+                                </ul>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="kanban-items" data-category-id="${category.id}">
+                    <div class="empty-column-message">
+                        <i class="fas fa-box-open mb-2"></i>
+                        <div>No products in this category</div>
+                    </div>
+                </div>
+            `;
+            
+            kanbanBoard.appendChild(column);
+        }
+        
+        // Add a product item to a column
+        function addProductItem(columnElement, product) {
+            const item = document.createElement('div');
+            item.className = 'kanban-item';
+            item.dataset.productId = product.id;
+            item.dataset.categoryId = product.category_id;
+            item.dataset.productName = product.name.toLowerCase();
+            item.dataset.barcode = product.barcode;
+            
+            const imageUrl = product.image_url || 'https://via.placeholder.com/60?text=No+Image';
+            
+            item.innerHTML = `
+                <div class="kanban-item-header">
+                    <strong>${product.name}</strong>
+                    <img src="${imageUrl}" alt="${product.name}" class="img-fluid">
+                </div>
+                <div class="small text-muted">Barcode: ${product.barcode}</div>
+                <div class="small">${product.price ? '$' + product.price : 'No price'}</div>
+            `;
+            
+            // Add click event to show product details
+            item.addEventListener('click', function(e) {
+                // Don't show details when dragging
+                if (item.classList.contains('sortable-ghost')) return;
+                
+                showProductDetails(product);
+            });
+            
+            columnElement.appendChild(item);
+        }
+        
+        // Initialize Sortable.js on all columns
+        function initializeSortable() {
+            document.querySelectorAll('.kanban-items').forEach(column => {
+                new Sortable(column, {
+                    group: 'kanban',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function(evt) {
+                        const productId = evt.item.dataset.productId;
+                        const newCategoryId = evt.to.dataset.categoryId;
+                        const oldCategoryId = evt.from.dataset.categoryId;
+                        
+                        // Only update if the category changed
+                        if (newCategoryId !== oldCategoryId) {
+                            updateProductCategory(productId, newCategoryId, oldCategoryId);
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Update product category via API
+        function updateProductCategory(productId, categoryId, oldCategoryId) {
+            fetch(`/api/update-category/${productId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ category_id: categoryId })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update category counts
+                    updateCategoryCounts(oldCategoryId, categoryId);
+                    
+                    // Update product in allProducts array
+                    const productIndex = allProducts.findIndex(p => p.id === productId);
+                    if (productIndex !== -1) {
+                        allProducts[productIndex].category_id = categoryId;
+                        allProducts[productIndex].category_name = data.product.category_name;
+                    }
+                    
+                    // Show success toast
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Category Updated',
+                        text: `Product moved to ${data.product.category_name}`,
+                        timer: 1500,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'bottom-end'
+                    });
+                } else {
+                    // Show error and reload board
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message
+                    });
+                    loadKanbanBoard();
+                }
+            })
+            .catch(error => {
+                console.error("Error updating category:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to update category: ' + error
+                });
+                loadKanbanBoard();
+            });
+        }
+        
+        // Update category counts after moving a product
+        function updateCategoryCounts(oldCategoryId, newCategoryId) {
+            const oldCountElement = document.querySelector(`.category-count[data-category-id="${oldCategoryId}"]`);
+            const newCountElement = document.querySelector(`.category-count[data-category-id="${newCategoryId}"]`);
+            
+            if (oldCountElement) {
+                const oldCount = parseInt(oldCountElement.textContent);
+                oldCountElement.textContent = oldCount - 1;
+                
+                // Show empty message if no products left
+                const oldColumn = document.querySelector(`.kanban-items[data-category-id="${oldCategoryId}"]`);
+                if (oldCount - 1 === 0 && oldColumn) {
+                    oldColumn.innerHTML = `
+                        <div class="empty-column-message">
+                            <i class="fas fa-box-open mb-2"></i>
+                            <div>No products in this category</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            if (newCountElement) {
+                const newCount = parseInt(newCountElement.textContent);
+                newCountElement.textContent = newCount + 1;
+                
+                // Remove empty message if it exists
+                const newColumn = document.querySelector(`.kanban-items[data-category-id="${newCategoryId}"]`);
+                if (newColumn) {
+                    const emptyMessage = newColumn.querySelector('.empty-column-message');
+                    if (emptyMessage) {
+                        emptyMessage.remove();
+                    }
+                }
+            }
+        }
+        
+        // Show product details in modal
+        function showProductDetails(product) {
+            document.getElementById('modalProductName').textContent = product.name;
+            document.getElementById('modalProductDescription').textContent = product.description || 'No description available';
+            document.getElementById('modalProductBarcode').textContent = product.barcode;
+            document.getElementById('modalProductPrice').textContent = product.price || 'N/A';
+            document.getElementById('modalProductCategory').textContent = product.category_name;
+            document.getElementById('modalProductCreatedAt').textContent = product.created_at;
+            
+            const modalImage = document.getElementById('modalProductImage');
+            if (product.image_url) {
+                modalImage.src = product.image_url;
+                modalImage.style.display = 'block';
+            } else {
+                modalImage.src = 'https://via.placeholder.com/200?text=No+Image';
+            }
+            
+            // Store current product for delete operation
+            currentProduct = product;
+            
+            // Show modal
+            const productModal = new bootstrap.Modal(document.getElementById('productDetailsModal'));
+            productModal.show();
+        }
+        
+        // Delete a product
+        function deleteProduct(productId) {
+            fetch(`/api/delete-product/${productId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    // Close the product details modal
+                    bootstrap.Modal.getInstance(document.getElementById('productDetailsModal')).hide();
+                    
+                    // Remove product from DOM
+                    const productElement = document.querySelector(`.kanban-item[data-product-id="${productId}"]`);
+                    if (productElement) {
+                        const categoryId = productElement.dataset.categoryId;
+                        productElement.remove();
+                        
+                        // Update category count
+                        const countElement = document.querySelector(`.category-count[data-category-id="${categoryId}"]`);
+                        if (countElement) {
+                            const currentCount = parseInt(countElement.textContent);
+                            countElement.textContent = currentCount - 1;
+                            
+                            // Show empty message if no products left
+                            if (currentCount - 1 === 0) {
+                                const column = document.querySelector(`.kanban-items[data-category-id="${categoryId}"]`);
+                                if (column) {
+                                    column.innerHTML = `
+                                        <div class="empty-column-message">
+                                            <i class="fas fa-box-open mb-2"></i>
+                                            <div>No products in this category</div>
+                                        </div>
+                                    `;
+                                }
+                            }
+                        }
+                        
+                        // Remove from allProducts array
+                        const productIndex = allProducts.findIndex(p => p.id === productId);
+                        if (productIndex !== -1) {
+                            allProducts.splice(productIndex, 1);
+                        }
+                    }
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Product Deleted',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error deleting product:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to delete product: ' + error
+                });
+            });
+        }
+        
+        // Delete a category
+        function deleteCategory(categoryId) {
+            fetch(`/api/delete-category/${categoryId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reload the kanban board to reflect changes
+                    loadKanbanBoard();
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Category Deleted',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error deleting category:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to delete category: ' + error
+                });
+            });
+        }
+        
+        // Update category details
+        function updateCategoryDetails(categoryId, categoryName) {
+            fetch(`/api/update-category-details/${categoryId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ name: categoryName })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    // Close modal and reset form
+                    editCategoryModal.hide();
+                    editCategoryNameInput.value = '';
+                    
+                    // Reload kanban board
+                    loadKanbanBoard();
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Category Updated',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error updating category:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to update category: ' + error
+                });
+            });
+        }
+    });
+</script>
+{% endblock %} 

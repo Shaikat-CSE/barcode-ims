@@ -1,0 +1,199 @@
+{% extends 'inventory/base.html' %}
+
+{% block title %}Profile - Barcode IMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: rgba(255, 255, 255, 0.1);
+        transform: rotate(30deg);
+        pointer-events: none;
+    }
+    
+    .avatar-circle {
+        width: 120px;
+        height: 120px;
+        background-color: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 1rem;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .avatar-initials {
+        color: white;
+        font-size: 48px;
+        font-weight: 600;
+        line-height: 1;
+    }
+    
+    .profile-card {
+        border: none;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--box-shadow);
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .profile-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .profile-card-header {
+        background-color: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+    
+    .profile-card-header i {
+        color: var(--primary-color);
+        margin-right: 0.5rem;
+    }
+    
+    .profile-info-row {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .profile-info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .profile-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .btn-profile {
+        padding: 0.6rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 500;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-profile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="profile-header">
+            <div class="row align-items-center">
+                <div class="col-md-4 text-center">
+                    <div class="avatar-circle">
+                        <span class="avatar-initials">{{ user.username|slice:":1"|upper }}</span>
+                    </div>
+                    <h3 class="mb-1">{{ user.get_full_name|default:user.username }}</h3>
+                    <p class="mb-0 opacity-75">{{ user.username }}</p>
+                </div>
+                <div class="col-md-8 mt-4 mt-md-0">
+                    <h2 class="mb-3">User Profile</h2>
+                    <p class="lead mb-0">Manage your account information and view your activity</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="profile-card">
+                    <div class="profile-card-header">
+                        <i class="fas fa-user"></i> Account Information
+                    </div>
+                    <div class="card-body">
+                        <div class="profile-info-row">
+                            <div class="row">
+                                <div class="col-md-4 profile-label">Username:</div>
+                                <div class="col-md-8">{{ user.username }}</div>
+                            </div>
+                        </div>
+                        <div class="profile-info-row">
+                            <div class="row">
+                                <div class="col-md-4 profile-label">Email:</div>
+                                <div class="col-md-8">{{ user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="profile-info-row">
+                            <div class="row">
+                                <div class="col-md-4 profile-label">Full Name:</div>
+                                <div class="col-md-8">
+                                    {% if user.first_name or user.last_name %}
+                                        {{ user.first_name }} {{ user.last_name }}
+                                    {% else %}
+                                        <span class="text-muted">Not provided</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-info-row">
+                            <div class="row">
+                                <div class="col-md-4 profile-label">Joined:</div>
+                                <div class="col-md-8">{{ user.date_joined|date:"F j, Y" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="profile-card">
+                    <div class="profile-card-header">
+                        <i class="fas fa-clock"></i> Account Activity
+                    </div>
+                    <div class="card-body">
+                        <div class="profile-info-row">
+                            <div class="row">
+                                <div class="col-md-4 profile-label">Last Login:</div>
+                                <div class="col-md-8">{{ user.last_login|date:"F j, Y, g:i a" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-card">
+                    <div class="profile-card-header">
+                        <i class="fas fa-shield-alt"></i> Security
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Manage your account security settings</p>
+                        <button class="btn btn-outline-primary btn-profile" disabled>
+                            <i class="fas fa-key me-2"></i>Change Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <a href="{% url 'inventory:index' %}" class="btn btn-primary btn-profile">
+                <i class="fas fa-home me-2"></i>Back to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

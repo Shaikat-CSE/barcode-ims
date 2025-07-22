@@ -1,0 +1,8 @@
+django>=5.0.0
+requests>=2.30.0 
+mongoengine>=0.29.0
+pymongo>=4.13.0
+dnspython>=2.7.0
+gunicorn>=21.2.0
+python-decouple>=3.8
+whitenoise>=6.7.0 

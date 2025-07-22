@@ -1,0 +1,298 @@
+{% extends 'inventory/base.html' %}
+
+{% block title %}Home - Barcode Inventory Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border-radius: var(--border-radius);
+        padding: 3rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: rgba(255, 255, 255, 0.1);
+        transform: rotate(30deg);
+        pointer-events: none;
+    }
+    
+    .hero-title {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .hero-subtitle {
+        font-weight: 300;
+        opacity: 0.9;
+        margin-bottom: 2rem;
+    }
+    
+    .feature-icon {
+        color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.1);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 1.5rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .card:hover .feature-icon {
+        transform: scale(1.1);
+    }
+    
+    .step-card {
+        border-left: 4px solid var(--primary-color);
+        transition: all 0.3s ease;
+    }
+    
+    .step-card:hover {
+        border-left-width: 8px;
+    }
+    
+    .step-number {
+        background: var(--primary-color);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 600;
+        margin-right: 1rem;
+    }
+    
+    .key-feature-card {
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    .key-feature-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .key-feature-icon {
+        color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.1);
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <!-- Hero Section -->
+        <div class="hero-section shadow">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <h1 class="hero-title display-4">Welcome to Barcode IMS</h1>
+                    <p class="hero-subtitle lead">A modern inventory management system powered by barcode scanning technology. Streamline your inventory process with our intuitive platform.</p>
+                    
+                    {% if user.is_authenticated %}
+                    <div class="d-flex flex-wrap gap-3">
+                        <a href="{% url 'inventory:barcode_scanner' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-qrcode me-2"></i>Start Scanning
+                        </a>
+                        <a href="{% url 'inventory:dashboard' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-chart-bar me-2"></i>View Dashboard
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-wrap gap-3">
+                        <a href="{% url 'accounts:login' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                        <a href="{% url 'accounts:register' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Register
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-lg-5 d-none d-lg-block text-center">
+                    <i class="fas fa-barcode fa-10x text-white opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        
+        {% if user.is_authenticated %}
+        <!-- Main Features for Authenticated Users -->
+        <h2 class="text-center mb-4">Manage Your Inventory</h2>
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-bar fa-3x"></i>
+                        </div>
+                        <h3>Dashboard</h3>
+                        <p class="text-muted mb-4">View analytics and insights about your inventory with interactive charts and statistics.</p>
+                        <a href="{% url 'inventory:dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-chart-bar me-2"></i>View Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon">
+                            <i class="fas fa-qrcode fa-3x"></i>
+                        </div>
+                        <h3>Barcode Scanner</h3>
+                        <p class="text-muted mb-4">Scan product barcodes to quickly add items to your inventory using your device's camera.</p>
+                        <a href="{% url 'inventory:barcode_scanner' %}" class="btn btn-primary">
+                            <i class="fas fa-qrcode me-2"></i>Start Scanning
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon">
+                            <i class="fas fa-columns fa-3x"></i>
+                        </div>
+                        <h3>Kanban Board</h3>
+                        <p class="text-muted mb-4">Organize and manage your inventory using a drag-and-drop kanban board sorted by categories.</p>
+                        <a href="{% url 'inventory:kanban_board' %}" class="btn btn-primary">
+                            <i class="fas fa-columns me-2"></i>View Board
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- How It Works Section -->
+        <div class="my-5">
+            <h2 class="text-center mb-4">How It Works</h2>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card step-card h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="step-number">1</div>
+                                <h4 class="mb-0">Scan Barcodes</h4>
+                            </div>
+                            <p class="text-muted">Use your device's camera or enter barcodes manually to quickly identify products.</p>
+                            <ul class="text-muted">
+                                <li>Works with most standard barcodes</li>
+                                <li>Automatic product lookup</li>
+                                <li>Fast and accurate scanning</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card step-card h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="step-number">2</div>
+                                <h4 class="mb-0">Add to Inventory</h4>
+                            </div>
+                            <p class="text-muted">Products are automatically added to your inventory with all relevant details.</p>
+                            <ul class="text-muted">
+                                <li>Automatic data population</li>
+                                <li>Categorization options</li>
+                                <li>Track product history</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card step-card h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="step-number">3</div>
+                                <h4 class="mb-0">Organize Products</h4>
+                            </div>
+                            <p class="text-muted">Drag and drop products to organize them by category on the kanban board.</p>
+                            <ul class="text-muted">
+                                <li>Intuitive drag-and-drop interface</li>
+                                <li>Create custom categories</li>
+                                <li>Filter and search options</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Key Features Section -->
+        <div class="my-5">
+            <h2 class="text-center mb-4">Key Features</h2>
+            <div class="row g-4">
+                <div class="col-md-3 col-6">
+                    <div class="card key-feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="key-feature-icon">
+                                <i class="fas fa-camera fa-2x"></i>
+                            </div>
+                            <h5>Camera Scanning</h5>
+                            <p class="small text-muted">Scan barcodes directly using your device's camera</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card key-feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="key-feature-icon">
+                                <i class="fas fa-cloud fa-2x"></i>
+                            </div>
+                            <h5>MongoDB Database</h5>
+                            <p class="small text-muted">Cloud-based database for reliable data storage</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card key-feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="key-feature-icon">
+                                <i class="fas fa-chart-pie fa-2x"></i>
+                            </div>
+                            <h5>Analytics Dashboard</h5>
+                            <p class="small text-muted">Visualize your inventory data with charts</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card key-feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="key-feature-icon">
+                                <i class="fas fa-users fa-2x"></i>
+                            </div>
+                            <h5>User Management</h5>
+                            <p class="small text-muted">Secure login and user authentication</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

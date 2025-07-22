@@ -1,0 +1,653 @@
+{% extends 'inventory/base.html' %}
+
+{% block title %}Barcode Scanner - Barcode IMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    #reader {
+        width: 100%;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        position: relative;
+        aspect-ratio: 4/3;
+        background-color: #000;
+    }
+    
+    .scanner-container {
+        max-width: 600px;
+        margin: 0 auto;
+        position: relative;
+    }
+    
+    .result-card {
+        display: none;
+        margin-top: 20px;
+        border: none;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .product-image {
+        max-height: 150px;
+        object-fit: contain;
+        transition: transform 0.3s ease;
+    }
+    
+    .product-image:hover {
+        transform: scale(1.05);
+    }
+    
+    .scan-history {
+        max-height: 400px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    
+    .scan-history::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .scan-history::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    
+    .scan-history::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+
+    .scanner-options {
+        margin-top: 15px;
+        margin-bottom: 15px;
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .scanner-options label {
+        margin-right: 10px;
+        font-weight: 500;
+    }
+    
+    /* Scan animation */
+    .scan-line {
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(0,212,255,0) 0%, rgba(0,212,255,1) 50%, rgba(0,212,255,0) 100%);
+        z-index: 9;
+        box-shadow: 0 0 8px 2px rgba(0, 212, 255, 0.5);
+        animation: scan 2s infinite linear;
+        display: none;
+    }
+    
+    @keyframes scan {
+        0% { top: 0; }
+        50% { top: calc(100% - 2px); }
+        100% { top: 0; }
+    }
+    
+    /* Scanner border */
+    .scanner-border {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        z-index: 8;
+        pointer-events: none;
+    }
+    
+    .scanner-corner {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-color: #0dcaf0;
+        border-style: solid;
+        border-width: 0;
+    }
+    
+    .corner-top-left {
+        top: 20px;
+        left: 20px;
+        border-top-width: 3px;
+        border-left-width: 3px;
+    }
+    
+    .corner-top-right {
+        top: 20px;
+        right: 20px;
+        border-top-width: 3px;
+        border-right-width: 3px;
+    }
+    
+    .corner-bottom-left {
+        bottom: 20px;
+        left: 20px;
+        border-bottom-width: 3px;
+        border-left-width: 3px;
+    }
+    
+    .corner-bottom-right {
+        bottom: 20px;
+        right: 20px;
+        border-bottom-width: 3px;
+        border-right-width: 3px;
+    }
+    
+    /* Scanner target area */
+    .scanner-target {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 70%;
+        height: 35%;
+        border: 2px dashed rgba(255, 255, 255, 0.5);
+        border-radius: 4px;
+        z-index: 7;
+        pointer-events: none;
+    }
+    
+    /* Button styles */
+    .btn-scanner {
+        transition: all 0.3s ease;
+        border-radius: 6px;
+        font-weight: 500;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .btn-scanner:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    /* Card styles */
+    .card {
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+    
+    .card-header {
+        border-bottom: none;
+        padding: 15px 20px;
+    }
+    
+    /* List group item styles */
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+        padding: 15px 20px;
+        transition: all 0.2s ease;
+    }
+    
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .list-group-item:first-child {
+        border-top: none;
+    }
+    
+    /* Status indicator */
+    .scanner-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        z-index: 10;
+        display: none;
+    }
+    
+    .scanner-status.active {
+        background-color: rgba(25, 135, 84, 0.8);
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <h1 class="mb-4">Barcode Scanner</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-camera me-2"></i>Scanner</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="scanner-container">
+                            <div id="reader">
+                                <div class="scan-line"></div>
+                                <div class="scanner-border"></div>
+                                <div class="scanner-target"></div>
+                                <div class="scanner-corner corner-top-left"></div>
+                                <div class="scanner-corner corner-top-right"></div>
+                                <div class="scanner-corner corner-bottom-left"></div>
+                                <div class="scanner-corner corner-bottom-right"></div>
+                                <div class="scanner-status">
+                                    <i class="fas fa-circle me-1"></i> Scanning
+                                </div>
+                            </div>
+                            
+                            <div class="scanner-options">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="continuousScan" checked>
+                                        <label class="form-check-label" for="continuousScan">Continuous Scanning</label>
+                                    </div>
+                                    <span class="badge bg-light text-dark" id="scanCount">0 scans</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 d-flex justify-content-between">
+                                <button id="startButton" class="btn btn-primary btn-scanner">
+                                    <i class="fas fa-play me-2"></i>Start Scanner
+                                </button>
+                                <button id="stopButton" class="btn btn-secondary btn-scanner" disabled>
+                                    <i class="fas fa-stop me-2"></i>Stop Scanner
+                                </button>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <div class="input-group">
+                                    <input type="text" id="barcodeInput" class="form-control" placeholder="Or enter barcode manually">
+                                    <button id="submitBarcode" class="btn btn-primary">Submit</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Last Scanned Product Card -->
+                <div id="resultCard" class="card result-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Product Added</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 text-center mb-3 mb-md-0">
+                                <img id="productImage" src="" alt="Product Image" class="product-image img-fluid">
+                            </div>
+                            <div class="col-md-8">
+                                <h4 id="productName"></h4>
+                                <p id="productDescription" class="text-muted"></p>
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Barcode:</strong> <span id="productBarcode"></span></span>
+                                    <span><strong>Price:</strong> $<span id="productPrice"></span></span>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary" id="productCategory">Uncategorized</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Scan History</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="scanHistory" class="list-group scan-history">
+                            <div class="text-center py-5 text-muted">
+                                <i class="fas fa-barcode fa-3x mb-3"></i>
+                                <p>No products scanned yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- HTML5 QR Code Scanner -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const reader = document.getElementById('reader');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const barcodeInput = document.getElementById('barcodeInput');
+        const submitBarcode = document.getElementById('submitBarcode');
+        const resultCard = document.getElementById('resultCard');
+        const productName = document.getElementById('productName');
+        const productDescription = document.getElementById('productDescription');
+        const productBarcode = document.getElementById('productBarcode');
+        const productPrice = document.getElementById('productPrice');
+        const productImage = document.getElementById('productImage');
+        const productCategory = document.getElementById('productCategory');
+        const scanHistory = document.getElementById('scanHistory');
+        const continuousScan = document.getElementById('continuousScan');
+        const scanLine = document.querySelector('.scan-line');
+        const scannerStatus = document.querySelector('.scanner-status');
+        const scanCount = document.getElementById('scanCount');
+        
+        // Initialize HTML5 QR Scanner
+        const html5QrCode = new Html5Qrcode("reader");
+        let scanning = false;
+        let lastScannedCode = null;
+        let lastScannedTime = 0;
+        const scanCooldown = 2000; // 2 seconds cooldown between same barcode scans
+        let totalScans = 0;
+        
+        // Start scanner
+        startButton.addEventListener('click', function() {
+            if (!scanning) {
+                const qrConfig = { 
+                    fps: 10, 
+                    qrbox: { 
+                        width: reader.offsetWidth * 0.7,
+                        height: reader.offsetHeight * 0.35
+                    },
+                    aspectRatio: 4/3
+                };
+                
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    qrConfig,
+                    onScanSuccess,
+                    onScanFailure
+                ).then(() => {
+                    scanning = true;
+                    startButton.disabled = true;
+                    stopButton.disabled = false;
+                    scanLine.style.display = 'block';
+                    scannerStatus.classList.add('active');
+                }).catch((err) => {
+                    console.error("Camera error:", err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Camera Error',
+                        text: 'Could not access camera: ' + err,
+                    });
+                });
+            }
+        });
+        
+        // Stop scanner
+        stopButton.addEventListener('click', function() {
+            stopScanner();
+        });
+        
+        function stopScanner() {
+            if (scanning) {
+                html5QrCode.stop().then(() => {
+                    scanning = false;
+                    startButton.disabled = false;
+                    stopButton.disabled = true;
+                    scanLine.style.display = 'none';
+                    scannerStatus.classList.remove('active');
+                }).catch((err) => {
+                    console.error("Error stopping scanner:", err);
+                });
+            }
+        }
+        
+        // Manual barcode entry
+        submitBarcode.addEventListener('click', function() {
+            const barcode = barcodeInput.value.trim();
+            if (barcode) {
+                processBarcode(barcode);
+                barcodeInput.value = '';
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Empty Barcode',
+                    text: 'Please enter a barcode',
+                });
+            }
+        });
+        
+        // Enter key for manual barcode entry
+        barcodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitBarcode.click();
+            }
+        });
+        
+        // Handle successful scan
+        function onScanSuccess(decodedText, decodedResult) {
+            const currentTime = new Date().getTime();
+            
+            // Prevent duplicate scans in quick succession
+            if (decodedText === lastScannedCode && currentTime - lastScannedTime < scanCooldown) {
+                return;
+            }
+            
+            lastScannedCode = decodedText;
+            lastScannedTime = currentTime;
+            
+            // Add scan animation flash
+            reader.classList.add('scan-success');
+            setTimeout(() => {
+                reader.classList.remove('scan-success');
+            }, 300);
+            
+            // If not continuous scanning, stop the scanner
+            if (!continuousScan.checked) {
+                stopScanner();
+            }
+                
+                // Process the barcode
+                processBarcode(decodedText);
+        }
+        
+        // Handle scan failure
+        function onScanFailure(error) {
+            // Only log critical errors, ignore common scanning failures
+            if (error && error.includes("critical")) {
+                console.error(`QR code scanning error: ${error}`);
+            }
+        }
+        
+        // Process barcode
+        function processBarcode(barcode) {
+            // Show loading
+            Swal.fire({
+                title: 'Processing...',
+                text: 'Fetching product information',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Call API to add product
+            fetch('/api/add-product/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ barcode: barcode })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                Swal.close();
+                
+                // Update scan count
+                totalScans++;
+                scanCount.textContent = `${totalScans} scan${totalScans !== 1 ? 's' : ''}`;
+                
+                if (data.status === 'success') {
+                    // Display product info
+                    displayProductInfo(data.product);
+                    
+                    // Add to scan history
+                    addToScanHistory(data.product);
+                    
+                    // Check if product already exists based on the message
+                    if (data.message.includes('already exists')) {
+                        // Show info message for existing product
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Product Already Exists',
+                            text: data.message,
+                            timer: continuousScan.checked ? 1000 : 2000,
+                            showConfirmButton: false
+                        });
+                        
+                        // Update the card header to show "Product Already Exists" instead of "Product Added"
+                        document.querySelector('#resultCard .card-header').className = 'card-header bg-info text-white';
+                        document.querySelector('#resultCard .card-header h5').innerHTML = '<i class="fas fa-info-circle me-2"></i>Product Already Exists';
+                    } else {
+                        // Show success message for new product
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Product Added',
+                            text: 'Product has been added to inventory',
+                            timer: continuousScan.checked ? 1000 : 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                } else {
+                    // Error case - no product data
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Unknown error occurred'
+                    });
+                }
+                
+                // If continuous scanning is enabled and scanner was stopped, restart it
+                if (continuousScan.checked && !scanning && startButton.disabled) {
+                    startButton.click();
+                }
+            })
+            .catch(error => {
+                Swal.close();
+                console.error("API error:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to process barcode: ' + error
+                });
+            });
+        }
+        
+        // Display product info in the result card
+        function displayProductInfo(product) {
+            productName.textContent = product.name;
+            productDescription.textContent = product.description || 'No description available';
+            productBarcode.textContent = product.barcode;
+            productPrice.textContent = product.price || 'N/A';
+            productCategory.textContent = product.category || 'Uncategorized';
+            
+            if (product.image_url) {
+                productImage.src = product.image_url;
+                productImage.style.display = 'block';
+            } else {
+                productImage.src = 'https://via.placeholder.com/150?text=No+Image';
+            }
+            
+            // Show with animation
+            resultCard.style.display = 'block';
+            resultCard.classList.add('animate__animated', 'animate__fadeIn');
+            setTimeout(() => {
+                resultCard.classList.remove('animate__animated', 'animate__fadeIn');
+            }, 1000);
+        }
+        
+        // Add product to scan history
+        function addToScanHistory(product) {
+            // Clear "no products" message if it exists
+            if (scanHistory.querySelector('.text-center')) {
+                scanHistory.innerHTML = '';
+            }
+            
+            const historyItem = document.createElement('div');
+            historyItem.className = 'list-group-item list-group-item-action animate__animated animate__fadeIn';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            
+            historyItem.innerHTML = `
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${product.name}</h6>
+                    <small>${timestamp}</small>
+                </div>
+                <p class="mb-1">Barcode: ${product.barcode}</p>
+                <small class="text-muted">Added to ${product.category}</small>
+            `;
+            
+            // Add to the top of the list
+            scanHistory.insertBefore(historyItem, scanHistory.firstChild);
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+                historyItem.classList.remove('animate__animated', 'animate__fadeIn');
+            }, 1000);
+        }
+        
+        // Handle window resize to adjust scanner box
+        window.addEventListener('resize', function() {
+            if (scanning) {
+                // Restart scanner with new dimensions
+                stopScanner();
+                setTimeout(() => {
+                    startButton.click();
+                }, 500);
+            }
+        });
+        
+        // Add CSS for scan success animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes scanSuccess {
+                0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7); }
+                50% { box-shadow: 0 0 0 15px rgba(25, 135, 84, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+            }
+            
+            .scan-success {
+                animation: scanSuccess 0.5s ease-out;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            .animate__animated {
+                animation-duration: 0.5s;
+                animation-fill-mode: both;
+            }
+            
+            .animate__fadeIn {
+                animation-name: fadeIn;
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %} 
