@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -10,6 +10,7 @@ from .models import Category, Product, ProductScan
 from mongoengine.errors import DoesNotExist, ValidationError, NotUniqueError
 from bson import ObjectId, errors as bson_errors
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 
 def index(request):
     """Home page view"""
@@ -467,3 +468,139 @@ def update_category_details(request, category_id):
         return JsonResponse({'status': 'error', 'message': 'Category with this name already exists'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+# New view functions for dedicated pages
+@login_required
+def add_category_page(request):
+    """View for adding a new category via a dedicated page"""
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        if name:
+            try:
+                category = Category.objects.create(name=name)
+                messages.success(request, f'Category "{name}" added successfully.')
+                return redirect('inventory:kanban_board')
+            except Exception as e:
+                messages.error(request, f'Error adding category: {str(e)}')
+        else:
+            messages.error(request, 'Category name is required.')
+    
+    return render(request, 'inventory/add_category.html')
+
+@login_required
+def edit_category_page(request):
+    """View for editing a category via a dedicated page"""
+    category_id = request.GET.get('id')
+    try:
+        # Validate the category_id is a valid ObjectId
+        if not category_id or not ObjectId.is_valid(category_id):
+            messages.error(request, 'Invalid category ID format.')
+            return redirect('inventory:kanban_board')
+        
+        # Convert string ID to ObjectId
+        category_object_id = ObjectId(category_id)
+        category = Category.objects.get(id=category_object_id)
+        
+        if request.method == 'POST':
+            name = request.POST.get('name')
+            if name:
+                category.name = name
+                category.save()
+                messages.success(request, f'Category updated to "{name}" successfully.')
+                return redirect('inventory:kanban_board')
+            else:
+                messages.error(request, 'Category name is required.')
+        
+        return render(request, 'inventory/edit_category.html', {'category': category})
+    except (DoesNotExist, bson_errors.InvalidId):
+        messages.error(request, 'Category not found.')
+        return redirect('inventory:kanban_board')
+    except Exception as e:
+        messages.error(request, f'Error editing category: {str(e)}')
+        return redirect('inventory:kanban_board')
+
+@login_required
+def product_detail(request, product_id):
+    """View for displaying product details on a dedicated page"""
+    try:
+        # Validate the product_id is a valid ObjectId
+        if not ObjectId.is_valid(product_id):
+            messages.error(request, 'Invalid product ID format.')
+            return redirect('inventory:kanban_board')
+        
+        # Convert string ID to ObjectId
+        product_object_id = ObjectId(product_id)
+        product = Product.objects.get(id=product_object_id)
+        return render(request, 'inventory/product_detail.html', {'product': product})
+    except (DoesNotExist, bson_errors.InvalidId):
+        messages.error(request, 'Product not found.')
+        return redirect('inventory:kanban_board')
+    except Exception as e:
+        messages.error(request, f'Error retrieving product: {str(e)}')
+        return redirect('inventory:kanban_board')
+
+@login_required
+def edit_product(request, product_id):
+    """View for editing a product via a dedicated page"""
+    try:
+        # Validate the product_id is a valid ObjectId
+        if not ObjectId.is_valid(product_id):
+            messages.error(request, 'Invalid product ID format.')
+            return redirect('inventory:kanban_board')
+        
+        # Convert string ID to ObjectId
+        product_object_id = ObjectId(product_id)
+        product = Product.objects.get(id=product_object_id)
+        categories = Category.objects.all()
+        
+        if request.method == 'POST':
+            # Process form submission
+            product.name = request.POST.get('name')
+            product.barcode = request.POST.get('barcode')
+            product.description = request.POST.get('description')
+            product.price = request.POST.get('price') or None
+            
+            category_id = request.POST.get('category')
+            if category_id and ObjectId.is_valid(category_id):
+                category = Category.objects.get(id=ObjectId(category_id))
+                product.category = category
+            
+            if 'image' in request.FILES:
+                product.image = request.FILES['image']
+            
+            product.save()
+            messages.success(request, f'Product "{product.name}" updated successfully.')
+            return redirect('inventory:product_detail', product_id=product_id)
+        
+        return render(request, 'inventory/edit_product.html', {
+            'product': product,
+            'categories': categories
+        })
+    except (DoesNotExist, bson_errors.InvalidId):
+        messages.error(request, 'Product not found.')
+        return redirect('inventory:kanban_board')
+    except Exception as e:
+        messages.error(request, f'Error editing product: {str(e)}')
+        return redirect('inventory:kanban_board')
+
+@login_required
+def delete_product_page(request, product_id):
+    """View for deleting a product via a dedicated page"""
+    try:
+        # Validate the product_id is a valid ObjectId
+        if not ObjectId.is_valid(product_id):
+            messages.error(request, 'Invalid product ID format.')
+            return redirect('inventory:kanban_board')
+        
+        # Convert string ID to ObjectId
+        product_object_id = ObjectId(product_id)
+        product = Product.objects.get(id=product_object_id)
+        name = product.name
+        product.delete()
+        messages.success(request, f'Product "{name}" deleted successfully.')
+    except (DoesNotExist, bson_errors.InvalidId):
+        messages.error(request, 'Product not found.')
+    except Exception as e:
+        messages.error(request, f'Error deleting product: {str(e)}')
+    
+    return redirect('inventory:kanban_board')
